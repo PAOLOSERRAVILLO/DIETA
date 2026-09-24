@@ -101,6 +101,15 @@
     .entry .right{text-align:right}
     .entry .ekcal{font-weight:600;color:var(--accent);white-space:nowrap}
     .empty{text-align:center;padding:24px;color:var(--muted);font-size:.88rem}
+    .day-total{margin-top:4px}
+    .day-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:.9rem}
+    .day-row:last-child{border-bottom:none}
+    .day-row .ml{font-weight:500}
+    .day-row .mr{color:var(--accent);font-weight:600;text-align:right}
+    .day-row .ms{font-size:.75rem;color:var(--muted);font-weight:400}
+    .day-grand{display:flex;justify-content:space-between;align-items:center;padding:12px 0 0;margin-top:6px;border-top:2px solid var(--primary);font-size:1rem;font-weight:700}
+    .day-grand .mr{color:var(--primary)}
+
     .wform{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:14px}
     @media(max-width:500px){.wform{grid-template-columns:1fr}}
     .wsum{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
@@ -226,8 +235,8 @@
       <div class="selected-food" id="selFood"></div>
       <div class="qty-row">
         <div>
-          <label>Quantità (g)</label>
-          <input type="number" id="qty" min="1" max="2000" value="100" step="1">
+          <label>Quantità (g) — standard dell'alimento, modificabile</label>
+          <input type="number" id="qty" min="1" max="2000" value="100" step="1" oninput="previewQty()">
         </div>
         <button class="btn-sm" onclick="addFood()" style="height:40px;align-self:end">+ Aggiungi</button>
       </div>
@@ -239,6 +248,10 @@
         <span>Totale pasto</span>
         <span id="mealTotal" style="color:var(--accent)">0 kcal</span>
       </div>
+    </div>
+    <div class="card day-total">
+      <h2>📅 Totale giornata</h2>
+      <div id="dayBreakdown"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <button class="btn2" onclick="clearMeal()">🗑️ Svuota pasto</button>
@@ -560,11 +573,70 @@ function filterFoods(){
       <div class="kcal">${f.k} kcal</div>
     </div>`).join('');
 }
+function defaultQty(food){
+  // porzione standard personalizzata se presente
+  if(food.q) return food.q;
+  const n=(food.n||'').toLowerCase();
+  const c=food.c||'';
+  // per nome
+  if(n.includes('uovo intero')) return 60;
+  if(n.includes('albume')) return 30;
+  if(n.includes('tuorlo')) return 20;
+  if(n.includes('olio')) return 10;
+  if(n.includes('burro')&&!n.includes('arachidi')) return 10;
+  if(n.includes('nutella')||n.includes('crema spalmabile')||n.includes('crema di nocciole')) return 15;
+  if(n.includes('parmigiano')||n.includes('grana')||n.includes('pecorino')) return 20;
+  if(n.includes('prosciutto')||n.includes('bresaola')||n.includes('speck')) return 50;
+  if(n.includes('brioche')||n.includes('cornetto')||n.includes('croissant')) return 55;
+  if(n.includes('muffin')||n.includes('plumcake')||n.includes('ciambella')) return 70;
+  if(n.includes('biscotti')||n.includes('wafer')) return 30;
+  if(n.includes('fette biscottate')||n.includes('crackers')||n.includes('grissini')) return 30;
+  if(n.includes('pane ')) return 50;
+  if(n.includes('pane al latte')) return 40;
+  if(n.includes('yogurt')) return 125;
+  if(n.includes('latte')||n.includes('bevanda vegetale')) return 200;
+  if(n.includes('spremuta')||n.includes('succo')) return 200;
+  if(n.includes('caffè')||n.includes('tè')) return 30;
+  if(n.includes('mandorle')||n.includes('noci')||n.includes('nocciole')||n.includes('anacardi')||n.includes('pistacchi')||n.includes('arachidi')||n.includes('semi di')) return 30;
+  if(n.includes('burro di arachidi')) return 20;
+  if(n.includes('miele')||n.includes('marmellata')||n.includes('zucchero')) return 15;
+  if(n.includes('cioccolato')) return 20;
+  if(n.includes('gelato')) return 100;
+  if(n.includes('barretta')) return 40;
+  if(n.includes('cereali zuccherati')||n.includes('cornflakes')||n.includes('muesli')) return 40;
+  if(n.includes('avena')&&n.includes('fiocchi')) return 40;
+  if(n.includes('porridge')) return 200;
+  if(n.includes('(cruda)')||n.includes('(crudo)')||n.includes('(secche)')||n.includes('(secchi)')) return 80;
+  if(n.includes('(cotta)')||n.includes('(cotto)')||n.includes('(cotte)')||n.includes('(lesse)')) return 150;
+  if(n.includes('pasta')||n.includes('riso')||n.includes('couscous')||n.includes('quinoa')||n.includes('gnocchi')||n.includes('polenta')) return 80;
+  if(n.includes('patate')) return 200;
+  if(n.includes('banana')||n.includes('mela')||n.includes('pera')||n.includes('arancia')) return 150;
+  if(n.includes('avocado')) return 100;
+  // per categoria
+  if(c==='Carne'||c==='Pesce') return 150;
+  if(c==='Verdure') return 150;
+  if(c==='Frutta') return 150;
+  if(c==='Legumi') return 150;
+  if(c==='Latticini') return 100;
+  if(c==='Frutta secca') return 30;
+  if(c==='Condimenti') return 10;
+  if(c==='Dolci') return 50;
+  if(c==='Bevande') return 200;
+  if(c==='Cereali') return 80;
+  return 100;
+}
 function selectFood(idx){
   selected=FOODS[idx];
   const el=document.getElementById('selFood');
   el.classList.add('show');
-  el.innerHTML=`<strong>${selected.n}</strong> — ${selected.k} kcal / 100g · P:${selected.p} C:${selected.cb} G:${selected.f}`;
+  const dq=defaultQty(selected);
+  document.getElementById('qty').value=dq;
+  const factor=dq/100;
+  const k=Math.round(selected.k*factor);
+  const p=+(selected.p*factor).toFixed(1);
+  const c=+(selected.cb*factor).toFixed(1);
+  const f=+(selected.f*factor).toFixed(1);
+  el.innerHTML=`<strong>${selected.n}</strong> — porzione standard <b>${dq}g</b> ≈ ${k} kcal · P ${p}g · C ${c}g · G ${f}g<br><span style="color:var(--muted);font-size:.8rem">Valori per 100g: ${selected.k} kcal · P ${selected.p} · C ${selected.cb} · G ${selected.f}</span>`;
 }
 function setMeal(m){
   curMeal=m;
@@ -572,6 +644,19 @@ function setMeal(m){
   const titles={colazione:'🍳 Colazione',pranzo:'🥗 Pranzo',cena:'🍽️ Cena',spuntini:'🍎 Spuntini'};
   document.getElementById('mealTitle').textContent=titles[m];
   renderMealEntries();
+}
+function previewQty(){
+  if(!selected) return;
+  const el=document.getElementById('selFood');
+  if(!el.classList.contains('show')) return;
+  let dq=+document.getElementById('qty').value;
+  if(!dq||dq<1) dq=1;
+  const factor=dq/100;
+  const k=Math.round(selected.k*factor);
+  const p=+(selected.p*factor).toFixed(1);
+  const c=+(selected.cb*factor).toFixed(1);
+  const f=+(selected.f*factor).toFixed(1);
+  el.innerHTML=`<strong>${selected.n}</strong> — <b>${dq}g</b> ≈ ${k} kcal · P ${p}g · C ${c}g · G ${f}g<br><span style="color:var(--muted);font-size:.8rem">Valori per 100g: ${selected.k} kcal · P ${selected.p} · C ${selected.cb} · G ${selected.f}</span>`;
 }
 function addFood(){
   if(!selected){alert('Seleziona prima un alimento dalla lista');return}
@@ -650,6 +735,11 @@ function renderMealEntries(){
   }).join('');
   document.getElementById('mealTotal').textContent=`${totK} kcal · P ${totP.toFixed(0)} · C ${totC.toFixed(0)} · G ${totF.toFixed(0)}`;
 }
+function mealSum(arr){
+  let k=0,p=0,c=0,f=0;
+  arr.forEach(e=>{k+=e.k;p+=e.p;c+=e.c;f+=e.f});
+  return {k,p,c,f};
+}
 function updateDiaryUI(){
   let totK=0,totP=0,totC=0,totF=0;
   Object.values(diary).forEach(arr=>arr.forEach(e=>{totK+=e.k;totP+=e.p;totC+=e.c;totF+=e.f}));
@@ -670,6 +760,26 @@ function updateDiaryUI(){
     mk(totP,targets.p,'Proteine (g)')+
     mk(totC,targets.c,'Carboidrati (g)')+
     mk(totF,targets.f,'Grassi (g)');
+
+  // Riepilogo per pasto + totale giornata
+  const labels={colazione:'🍳 Colazione',pranzo:'🥗 Pranzo',cena:'🍽️ Cena',spuntini:'🍎 Spuntini'};
+  let html='';
+  for(const m of ['colazione','pranzo','cena','spuntini']){
+    const s=mealSum(diary[m]||[]);
+    html+=`<div class="day-row">
+      <div class="ml">${labels[m]}<div class="ms">${(diary[m]||[]).length} alimenti</div></div>
+      <div class="mr">${s.k} kcal<div class="ms">P ${s.p.toFixed(0)} · C ${s.c.toFixed(0)} · G ${s.f.toFixed(0)}</div></div>
+    </div>`;
+  }
+  const remain=Math.round(targets.cals-totK);
+  const remainTxt=remain>=0?`${remain} kcal rimanenti`:`${Math.abs(remain)} kcal in eccesso`;
+  html+=`<div class="day-grand">
+    <div>Totale giornata<div class="ms" style="font-weight:400;font-size:.78rem;color:var(--muted)">${remainTxt}</div></div>
+    <div class="mr">${Math.round(totK)} kcal<div class="ms" style="font-weight:400">P ${totP.toFixed(0)} · C ${totC.toFixed(0)} · G ${totF.toFixed(0)}</div></div>
+  </div>`;
+  const bd=document.getElementById('dayBreakdown');
+  if(bd) bd.innerHTML=html;
+
   renderMealEntries();
 }
 function clearMeal(){
