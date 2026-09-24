@@ -91,12 +91,15 @@
     .selected-food{background:var(--input);border:1px solid var(--primary);border-radius:9px;padding:10px 12px;margin-bottom:10px;font-size:.88rem;display:none}
     .selected-food.show{display:block}
     .entries{margin-top:8px}
-    .entry{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--input);border:1px solid var(--border);border-radius:9px;margin-bottom:6px;font-size:.88rem}
-    .entry .left{flex:1}
+    .entry{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--input);border:1px solid var(--border);border-radius:9px;margin-bottom:6px;font-size:.88rem;gap:8px;flex-wrap:wrap}
+    .entry .left{flex:1;min-width:120px}
     .entry .ename{font-weight:500}
     .entry .emeta{font-size:.75rem;color:var(--muted)}
-    .entry .right{text-align:right;margin-right:10px}
-    .entry .ekcal{font-weight:600;color:var(--accent)}
+    .entry .qty-edit{display:flex;align-items:center;gap:4px}
+    .entry .qty-edit input{width:72px;padding:6px 8px;font-size:.85rem;text-align:center}
+    .entry .qty-edit span{font-size:.8rem;color:var(--muted)}
+    .entry .right{text-align:right}
+    .entry .ekcal{font-weight:600;color:var(--accent);white-space:nowrap}
     .empty{text-align:center;padding:24px;color:var(--muted);font-size:.88rem}
     .wform{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:14px}
     @media(max-width:500px){.wform{grid-template-columns:1fr}}
@@ -576,7 +579,10 @@ function addFood(){
   if(!qty||qty<1){alert('Inserisci una quantità valida');return}
   const factor=qty/100;
   diary[curMeal].push({
-    name:selected.n,qty,
+    name:selected.n,
+    qty,
+    // valori base per 100g (per poter ricalcolare)
+    bk:selected.k, bp:selected.p, bc:selected.cb, bf:selected.f,
     k:Math.round(selected.k*factor),
     p:+(selected.p*factor).toFixed(1),
     c:+(selected.cb*factor).toFixed(1),
@@ -588,6 +594,30 @@ function addFood(){
 }
 function removeEntry(meal,idx){
   diary[meal].splice(idx,1);
+  saveDiary();
+  renderMealEntries();
+  updateDiaryUI();
+}
+function updateQty(meal,idx,newQty){
+  const e=diary[meal][idx];
+  if(!e) return;
+  let qty=parseFloat(newQty);
+  if(isNaN(qty)||qty<1) qty=1;
+  if(qty>5000) qty=5000;
+  e.qty=qty;
+  // se mancano i base (voci vecchie), stima dai valori attuali
+  if(e.bk==null){
+    const old=e.qty||100;
+    e.bk=Math.round((e.k/(old||100))*100)||0;
+    e.bp=+((e.p/(old||100))*100).toFixed(1)||0;
+    e.bc=+((e.c/(old||100))*100).toFixed(1)||0;
+    e.bf=+((e.f/(old||100))*100).toFixed(1)||0;
+  }
+  const factor=qty/100;
+  e.k=Math.round(e.bk*factor);
+  e.p=+(e.bp*factor).toFixed(1);
+  e.c=+(e.bc*factor).toFixed(1);
+  e.f=+(e.bf*factor).toFixed(1);
   saveDiary();
   renderMealEntries();
   updateDiaryUI();
@@ -604,7 +634,16 @@ function renderMealEntries(){
   el.innerHTML=entries.map((e,i)=>{
     totK+=e.k;totP+=e.p;totC+=e.c;totF+=e.f;
     return `<div class="entry">
-      <div class="left"><div class="ename">${e.name}</div><div class="emeta">${e.qty}g · P ${e.p}g · C ${e.c}g · G ${e.f}g</div></div>
+      <div class="left">
+        <div class="ename">${e.name}</div>
+        <div class="emeta">P ${e.p}g · C ${e.c}g · G ${e.f}g</div>
+      </div>
+      <div class="qty-edit">
+        <input type="number" min="1" max="5000" step="1" value="${e.qty}"
+          onchange="updateQty('${curMeal}',${i},this.value)"
+          onblur="updateQty('${curMeal}',${i},this.value)">
+        <span>g</span>
+      </div>
       <div class="right"><div class="ekcal">${e.k} kcal</div></div>
       <button class="btn-x" onclick="removeEntry('${curMeal}',${i})">✕</button>
     </div>`;
